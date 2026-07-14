@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.pongs.order_service.mapper.OrderMapper">
+
+    <insert id="insert"
+            parameterType="com.pongs.order_service.model.entity.Order"
+            useGeneratedKeys="true"
+            keyProperty="id">
+
+        INSERT INTO orders (
+            username,
+            product_id,
+            quantity,
+            status
+        )
+        VALUES (
+            #{username},
+            #{productId},
+            #{quantity},
+            #{status}
+        )
+
+    </insert>
+
+    <select id="findById"
+            parameterType="long"
+            resultType="com.pongs.order_service.model.entity.Order">
+
+        SELECT
+            id,
+            username,
+            product_id AS productId,
+            quantity,
+            status,
+            created_at AS createdAt,
+            updated_at AS updatedAt
+        FROM orders
+        WHERE id = #{id}
+
+    </select>
+</mapper>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.pongs.inventory_service.mapper.InventoryMapper">
+
+    <insert id="insert"
+            parameterType="com.pongs.inventory_service.model.entity.Inventory"
+            useGeneratedKeys="true"
+            keyProperty="id">
+
+        INSERT INTO inventory (
+            product_id,
+            quantity
+        )
+        VALUES (
+            #{productId},
+            #{quantity}
+        )
+
+    </insert>
+
+    <update id="deductStock"
+            parameterType="com.pongs.inventory_service.model.entity.Inventory">
+        UPDATE inventory
+        SET quantity = quantity - #{quantity}
+        WHERE product_id = #{productId}
+    </update>
+
+    <select id="findByProductId"
+            parameterType="string"
+            resultType="com.pongs.inventory_service.model.entity.Inventory">
+
+        SELECT
+            id,
+            product_id AS productId,
+            quantity
+        FROM inventory
+        WHERE product_id = #{productId}
+
+    </select>
+</mapper>
