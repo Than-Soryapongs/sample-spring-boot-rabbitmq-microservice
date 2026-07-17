@@ -1,52 +1,63 @@
 package com.pongs.order_service.service;
 
+import java.time.LocalDateTime;
+
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
-import com.pongs.order_service.client.InventoryServiceClient;
 import com.pongs.order_service.client.UserServiceClient;
-import com.pongs.order_service.exception.InsufficientStockException;
+import com.pongs.order_service.config.RabbitMQConfig;
 import com.pongs.order_service.exception.UserNotFoundException;
 import com.pongs.order_service.mapper.OrderMapper;
 import com.pongs.order_service.model.entity.Order;
+import com.pongs.order_service.model.event.OrderCreatedEvent;
 
 @Service
 public class OrderService {
 
     private final OrderMapper orderMapper;
     private final UserServiceClient userServiceClient;
-    private final InventoryServiceClient inventoryServiceClient;
+    private final RabbitTemplate rabbitTemplate;
 
     public OrderService(OrderMapper orderMapper,
                          UserServiceClient userServiceClient,
-                         InventoryServiceClient inventoryServiceClient) {
+                         RabbitTemplate rabbitTemplate) {
         this.orderMapper = orderMapper;
         this.userServiceClient = userServiceClient;
-        this.inventoryServiceClient = inventoryServiceClient;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     public Order createOrder(String username, String productId, Integer quantity) {
-
         if (!userServiceClient.userExists(username)) {
-            throw new UserNotFoundException("User not found: " + username);
-        }
-
-        boolean deducted = inventoryServiceClient.deductStock(productId, quantity);
-        if (!deducted) {
-            throw new InsufficientStockException("Could not deduct stock for product: " + productId);
+            throw new UserNotFoundException(username);
         }
 
         Order order = new Order();
         order.setUsername(username);
         order.setProductId(productId);
         order.setQuantity(quantity);
-        order.setStatus("CONFIRMED");
+        order.setStatus("PENDING");
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
 
         orderMapper.insert(order);
 
-        return orderMapper.findById(order.getId());
+        OrderCreatedEvent event = OrderCreatedEvent.of(order.getId(), productId, quantity);
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.ORDER_EXCHANGE,
+                RabbitMQConfig.INVENTORY_ROUTING_KEY,
+                event);
+
+        System.out.println("[Order] Order " + order.getId() + " created with status PENDING, event published.");
+
+        return order;
     }
 
-    public Order getOrder(Long id) {
-        return orderMapper.findById(id);
+    public Order getOrder(Long orderId) {
+        return orderMapper.findById(orderId);
+    }
+
+    public void updateStatus(Long orderId, String status) {
+        orderMapper.updateStatus(orderId, status);
     }
 }
